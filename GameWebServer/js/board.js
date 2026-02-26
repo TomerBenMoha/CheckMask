@@ -16,6 +16,14 @@ export function createInitialBoard() {
     return cloneBoard(INITIAL_LAYOUT);
 }
 
+export function createInitialCastlingRights() {
+    return { whiteK: true, whiteQ: true, blackK: true, blackQ: true };
+}
+
+export function cloneCastlingRights(r) {
+    return { ...r };
+}
+
 export function inBounds(row, col) {
     return row >= 0 && row < 8 && col >= 0 && col < 8;
 }

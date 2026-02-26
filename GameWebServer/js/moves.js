@@ -1,4 +1,4 @@
-import { inBounds, cloneBoard, findKing } from './board.js';
+import { inBounds, cloneBoard, findKing, createInitialCastlingRights } from './board.js';
 
 // ---------------------------------------------------------------------------
 // Sliding helper -- shared by bishop, rook, queen
@@ -105,8 +105,9 @@ const MOVE_GENERATORS = {
     queen: getQueenMoves,
 };
 
-export function getKingMoves(board, row, col) {
+export function getKingMoves(board, row, col, castlingRights) {
     const piece = board[row][col];
+    const cr = castlingRights ?? createInitialCastlingRights();
     const seen = new Set();
     const key = (r, c) => r * 8 + c;
     const moves = [];
@@ -120,6 +121,43 @@ export function getKingMoves(board, row, col) {
 
     add(getStandardKingMoves(board, row, col));
 
+    // Castling: only from king home square (e1/e8)
+    const color = piece.color;
+    const enemy = color === 'white' ? 'black' : 'white';
+    if (piece.type === 'king' && col === 4) {
+        if (color === 'white' && row === 7) {
+            if (cr.whiteK) {
+                const rook = board[7][7];
+                if (rook?.type === 'rook' && rook.color === 'white' && !board[7][5] && !board[7][6] &&
+                    !isSquareAttacked(board, 7, 4, enemy) && !isSquareAttacked(board, 7, 5, enemy) && !isSquareAttacked(board, 7, 6, enemy)) {
+                    add([{ row: 7, col: 6 }]);
+                }
+            }
+            if (cr.whiteQ) {
+                const rook = board[7][0];
+                if (rook?.type === 'rook' && rook.color === 'white' && !board[7][1] && !board[7][2] && !board[7][3] &&
+                    !isSquareAttacked(board, 7, 4, enemy) && !isSquareAttacked(board, 7, 2, enemy) && !isSquareAttacked(board, 7, 3, enemy)) {
+                    add([{ row: 7, col: 2 }]);
+                }
+            }
+        } else if (color === 'black' && row === 0) {
+            if (cr.blackK) {
+                const rook = board[0][7];
+                if (rook?.type === 'rook' && rook.color === 'black' && !board[0][5] && !board[0][6] &&
+                    !isSquareAttacked(board, 0, 4, enemy) && !isSquareAttacked(board, 0, 5, enemy) && !isSquareAttacked(board, 0, 6, enemy)) {
+                    add([{ row: 0, col: 6 }]);
+                }
+            }
+            if (cr.blackQ) {
+                const rook = board[0][0];
+                if (rook?.type === 'rook' && rook.color === 'black' && !board[0][1] && !board[0][2] && !board[0][3] &&
+                    !isSquareAttacked(board, 0, 4, enemy) && !isSquareAttacked(board, 0, 2, enemy) && !isSquareAttacked(board, 0, 3, enemy)) {
+                    add([{ row: 0, col: 2 }]);
+                }
+            }
+        }
+    }
+
     if (piece.extraMoves) {
         for (const type of piece.extraMoves) {
             const gen = MOVE_GENERATORS[type];
@@ -132,7 +170,7 @@ export function getKingMoves(board, row, col) {
 // ---------------------------------------------------------------------------
 // Dispatch raw moves by piece type
 // ---------------------------------------------------------------------------
-function getRawMoves(board, row, col) {
+function getRawMoves(board, row, col, castlingRights) {
     const piece = board[row][col];
     if (!piece) return [];
     switch (piece.type) {
@@ -141,7 +179,7 @@ function getRawMoves(board, row, col) {
         case 'knight': return getKnightMoves(board, row, col);
         case 'rook':   return getRookMoves(board, row, col);
         case 'queen':  return getQueenMoves(board, row, col);
-        case 'king':   return getKingMoves(board, row, col);
+        case 'king':   return getKingMoves(board, row, col, castlingRights);
         default:       return [];
     }
 }
@@ -163,16 +201,26 @@ export function isSquareAttacked(board, row, col, byColor) {
     return false;
 }
 
-export function getValidMoves(board, row, col) {
+export function getValidMoves(board, row, col, castlingRights) {
     const piece = board[row][col];
     if (!piece) return [];
-    const raw = getRawMoves(board, row, col);
+    const cr = castlingRights ?? createInitialCastlingRights();
+    const raw = getRawMoves(board, row, col, cr);
     const legal = [];
 
     for (const move of raw) {
         const sim = cloneBoard(board);
         sim[move.row][move.col] = sim[row][col];
         sim[row][col] = null;
+        if (piece.type === 'king' && col === 4 && (move.col === 6 || move.col === 2)) {
+            if (move.col === 6) {
+                sim[row][5] = sim[row][7];
+                sim[row][7] = null;
+            } else {
+                sim[row][3] = sim[row][0];
+                sim[row][0] = null;
+            }
+        }
         const king = findKing(sim, piece.color);
         if (king && !isSquareAttacked(sim, king.row, king.col, piece.color === 'white' ? 'black' : 'white')) {
             legal.push(move);

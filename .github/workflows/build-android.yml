@@ -30,23 +30,26 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Install npm dependencies
+        working-directory: Deployment
         run: npm install
 
       - name: Add Android platform
+        working-directory: Deployment
         run: npx cap add android
 
       - name: Sync web assets to Android
+        working-directory: Deployment
         run: npx cap sync android
 
       - name: Build debug APK
-        working-directory: android
+        working-directory: Deployment/android
         run: ./gradlew assembleDebug
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: purim-chess-debug
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: Deployment/android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
 
   release:
@@ -73,21 +76,24 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Install npm dependencies
+        working-directory: Deployment
         run: npm install
 
       - name: Add Android platform
+        working-directory: Deployment
         run: npx cap add android
 
       - name: Sync web assets to Android
+        working-directory: Deployment
         run: npx cap sync android
 
       - name: Build release APK
-        working-directory: android
+        working-directory: Deployment/android
         run: ./gradlew assembleRelease
 
       - name: Upload release APK
         uses: actions/upload-artifact@v4
         with:
           name: purim-chess-release
-          path: android/app/build/outputs/apk/release/app-release-unsigned.apk
+          path: Deployment/android/app/build/outputs/apk/release/app-release-unsigned.apk
           retention-days: 90

@@ -124,6 +124,9 @@ const COL_LETTERS = 'abcdefgh';
 const PIECE_SYMBOLS = { king: 'K', queen: 'Q', rook: 'R', bishop: 'B', knight: 'N', pawn: '' };
 
 export function moveToNotation(board, fromRow, fromCol, toRow, toCol, piece, captured) {
+    if (piece.type === 'king' && fromCol === 4 && (toCol === 6 || toCol === 2)) {
+        return toCol === 6 ? 'O-O' : 'O-O-O';
+    }
     const sym = PIECE_SYMBOLS[piece.type] || '';
     const dest = COL_LETTERS[toCol] + (8 - toRow);
     const cap = captured ? 'x' : '';

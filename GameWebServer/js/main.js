@@ -1,4 +1,4 @@
-import { createInitialBoard, cloneBoard } from './board.js';
+import { createInitialBoard, cloneBoard, createInitialCastlingRights, cloneCastlingRights } from './board.js';
 import { getValidMoves } from './moves.js';
 import { applyMove, isInCheck, isCheckmate, isStalemate, needsPromotion, applyPromotion } from './rules.js';
 import { getBestMove, setAiDepth } from './ai.js';
@@ -20,7 +20,10 @@ let validMoves = [];
 let gameOver = false;
 let awaitingPromotion = false;
 
-// History: array of { board, move, notation }
+// Castling rights (mutated by applyMove)
+let currentCastlingRights = createInitialCastlingRights();
+
+// History: array of { board, move, notation, castlingRights }
 // Index 0 = initial position (no move). Each subsequent entry is a half-move.
 let history = [];
 let viewIndex = 0;        // which history entry the board is showing
@@ -29,6 +32,12 @@ let viewIndex = 0;        // which history entry the board is showing
 const gameModeSelect = document.getElementById('game-mode');
 const difficultySelect = document.getElementById('difficulty');
 const difficultyGroup = document.getElementById('difficulty-group');
+const playAsSelect = document.getElementById('play-as');
+const playAsGroup = document.getElementById('play-as-group');
+
+// Human/AI colors (when vs Computer); set in readSettings()
+let humanColor = 'white';
+let aiColor = 'black';
 
 // ---------------------------------------------------------------------------
 // Setup controls
@@ -36,12 +45,16 @@ const difficultyGroup = document.getElementById('difficulty-group');
 gameModeSelect.addEventListener('change', () => {
     gameMode = gameModeSelect.value;
     difficultyGroup.style.display = gameMode === 'pvai' ? '' : 'none';
+    playAsGroup.style.display = gameMode === 'pvai' ? '' : 'none';
 });
 
 function readSettings() {
     gameMode = gameModeSelect.value;
     difficultyGroup.style.display = gameMode === 'pvai' ? '' : 'none';
+    playAsGroup.style.display = gameMode === 'pvai' ? '' : 'none';
     setAiDepth(parseInt(difficultySelect.value, 10));
+    humanColor = playAsSelect.value;
+    aiColor = humanColor === 'white' ? 'black' : 'white';
 }
 
 // ---------------------------------------------------------------------------
@@ -50,15 +63,23 @@ function readSettings() {
 function startGame() {
     readSettings();
     board = createInitialBoard();
+    currentCastlingRights = createInitialCastlingRights();
     currentTurn = 'white';
     selectedSquare = null;
     validMoves = [];
     gameOver = false;
     awaitingPromotion = false;
-    history = [{ board: cloneBoard(board), move: null, notation: null }];
+    history = [{ board: cloneBoard(board), move: null, notation: null, castlingRights: cloneCastlingRights(currentCastlingRights) }];
     viewIndex = 0;
-    setStatus("White's turn");
+    const turnName = currentTurn === 'white' ? 'White' : 'Black';
+    setStatus(`${turnName}'s turn`);
     render();
+    // If vs Computer and AI moves first (player chose Black), trigger AI
+    if (gameMode === 'pvai' && currentTurn === aiColor) {
+        setStatus((aiColor === 'white' ? 'White' : 'Black') + ' is thinking', 'thinking');
+        render();
+        setTimeout(doAiTurn, 300);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -107,7 +128,7 @@ function navigateToIndex(idx) {
 // ---------------------------------------------------------------------------
 function isHumanTurn() {
     if (gameMode === 'pvp') return true;
-    return currentTurn === 'white';
+    return currentTurn === humanColor;
 }
 
 function handleSquareClick(row, col) {
@@ -130,7 +151,7 @@ function handleSquareClick(row, col) {
 
     if (piece && piece.color === currentTurn) {
         selectedSquare = { row, col };
-        validMoves = getValidMoves(board, row, col);
+        validMoves = getValidMoves(board, row, col, currentCastlingRights);
         render();
         return;
     }
@@ -148,7 +169,7 @@ async function executeMove(fromRow, fromCol, toRow, toCol) {
     const captured = board[toRow][toCol];
     let notation = moveToNotation(board, fromRow, fromCol, toRow, toCol, piece, captured);
 
-    applyMove(board, fromRow, fromCol, toRow, toCol);
+    applyMove(board, fromRow, fromCol, toRow, toCol, currentCastlingRights);
 
     // Promotion: if pawn still on last rank after Purim capture logic, ask player
     if (needsPromotion(board, toRow, toCol)) {
@@ -161,7 +182,7 @@ async function executeMove(fromRow, fromCol, toRow, toCol) {
     }
 
     const move = { from: { row: fromRow, col: fromCol }, to: { row: toRow, col: toCol } };
-    history.push({ board: cloneBoard(board), move, notation });
+    history.push({ board: cloneBoard(board), move, notation, castlingRights: cloneCastlingRights(currentCastlingRights) });
     viewIndex = history.length - 1;
     selectedSquare = null;
     validMoves = [];
@@ -172,8 +193,9 @@ async function executeMove(fromRow, fromCol, toRow, toCol) {
 
     currentTurn = nextColor;
 
-    if (gameMode === 'pvai' && currentTurn === 'black') {
-        setStatus('Black is thinking', 'thinking');
+    if (gameMode === 'pvai' && currentTurn === aiColor) {
+        const name = aiColor === 'white' ? 'White' : 'Black';
+        setStatus(`${name} is thinking`, 'thinking');
         render();
         setTimeout(doAiTurn, 300);
     } else {
@@ -191,7 +213,7 @@ async function executeMove(fromRow, fromCol, toRow, toCol) {
 // AI turn
 // ---------------------------------------------------------------------------
 function doAiTurn() {
-    const move = getBestMove(cloneBoard(board), 'black');
+    const move = getBestMove(cloneBoard(board), aiColor, cloneCastlingRights(currentCastlingRights));
 
     if (!move) {
         setStatus('Stalemate!');
@@ -204,23 +226,24 @@ function doAiTurn() {
     const captured = board[move.to.row][move.to.col];
     let notation = moveToNotation(board, move.from.row, move.from.col, move.to.row, move.to.col, piece, captured);
 
-    applyMove(board, move.from.row, move.from.col, move.to.row, move.to.col);
+    applyMove(board, move.from.row, move.from.col, move.to.row, move.to.col, currentCastlingRights);
 
     if (needsPromotion(board, move.to.row, move.to.col)) {
         applyPromotion(board, move.to.row, move.to.col, 'queen');
         notation += '=Q';
     }
 
-    history.push({ board: cloneBoard(board), move: { from: move.from, to: move.to }, notation });
+    history.push({ board: cloneBoard(board), move: { from: move.from, to: move.to }, notation, castlingRights: cloneCastlingRights(currentCastlingRights) });
     viewIndex = history.length - 1;
 
-    if (checkEndConditions('white')) return;
+    if (checkEndConditions(humanColor)) return;
 
-    currentTurn = 'white';
-    if (isInCheck(board, 'white')) {
-        setStatus("White's turn - CHECK!", 'check');
+    currentTurn = humanColor;
+    const name = humanColor === 'white' ? 'White' : 'Black';
+    if (isInCheck(board, humanColor)) {
+        setStatus(`${name}'s turn - CHECK!`, 'check');
     } else {
-        setStatus("White's turn");
+        setStatus(`${name}'s turn`);
     }
     render();
 }
@@ -229,14 +252,14 @@ function doAiTurn() {
 // End conditions
 // ---------------------------------------------------------------------------
 function checkEndConditions(nextColor) {
-    if (isCheckmate(board, nextColor)) {
+    if (isCheckmate(board, nextColor, currentCastlingRights)) {
         const winner = nextColor === 'white' ? 'Black' : 'White';
         setStatus(`Checkmate! ${winner} wins!`);
         gameOver = true;
         render();
         return true;
     }
-    if (isStalemate(board, nextColor)) {
+    if (isStalemate(board, nextColor, currentCastlingRights)) {
         setStatus('Stalemate! Draw.');
         gameOver = true;
         render();

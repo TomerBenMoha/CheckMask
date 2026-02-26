@@ -1,5 +1,5 @@
 import { PIECE_VALUE } from './constants.js';
-import { cloneBoard } from './board.js';
+import { cloneBoard, createInitialCastlingRights, cloneCastlingRights } from './board.js';
 import { getValidMoves } from './moves.js';
 import { applyMove, isCheckmate, isStalemate, needsPromotion, applyPromotion } from './rules.js';
 
@@ -53,13 +53,14 @@ function evaluateBoard(board, aiColor) {
     return score;
 }
 
-function minimax(board, depth, alpha, beta, isMaximizing, aiColor) {
+function minimax(board, castlingRights, depth, alpha, beta, isMaximizing, aiColor) {
+    const cr = castlingRights ?? createInitialCastlingRights();
     const currentColor = isMaximizing ? aiColor : (aiColor === 'white' ? 'black' : 'white');
 
-    if (isCheckmate(board, currentColor)) {
+    if (isCheckmate(board, currentColor, cr)) {
         return { score: isMaximizing ? -100000 - depth : 100000 + depth, move: null };
     }
-    if (isStalemate(board, currentColor)) {
+    if (isStalemate(board, currentColor, cr)) {
         return { score: 0, move: null };
     }
     if (depth === 0) {
@@ -70,12 +71,13 @@ function minimax(board, depth, alpha, beta, isMaximizing, aiColor) {
 
     if (isMaximizing) {
         let maxEval = -Infinity;
-        const moves = orderMoves(board, getAllMoves(board, aiColor));
+        const moves = orderMoves(board, getAllMoves(board, aiColor, cr));
         for (const { from, to } of moves) {
             const sim = cloneBoard(board);
-            applyMove(sim, from.row, from.col, to.row, to.col);
+            const simRights = cloneCastlingRights(cr);
+            applyMove(sim, from.row, from.col, to.row, to.col, simRights);
             if (needsPromotion(sim, to.row, to.col)) applyPromotion(sim, to.row, to.col, 'queen');
-            const result = minimax(sim, depth - 1, alpha, beta, false, aiColor);
+            const result = minimax(sim, simRights, depth - 1, alpha, beta, false, aiColor);
             if (result.score > maxEval) {
                 maxEval = result.score;
                 bestMove = { from, to };
@@ -87,12 +89,13 @@ function minimax(board, depth, alpha, beta, isMaximizing, aiColor) {
     } else {
         let minEval = Infinity;
         const opponentColor = aiColor === 'white' ? 'black' : 'white';
-        const moves = orderMoves(board, getAllMoves(board, opponentColor));
+        const moves = orderMoves(board, getAllMoves(board, opponentColor, cr));
         for (const { from, to } of moves) {
             const sim = cloneBoard(board);
-            applyMove(sim, from.row, from.col, to.row, to.col);
+            const simRights = cloneCastlingRights(cr);
+            applyMove(sim, from.row, from.col, to.row, to.col, simRights);
             if (needsPromotion(sim, to.row, to.col)) applyPromotion(sim, to.row, to.col, 'queen');
-            const result = minimax(sim, depth - 1, alpha, beta, true, aiColor);
+            const result = minimax(sim, simRights, depth - 1, alpha, beta, true, aiColor);
             if (result.score < minEval) {
                 minEval = result.score;
                 bestMove = { from, to };
@@ -104,13 +107,13 @@ function minimax(board, depth, alpha, beta, isMaximizing, aiColor) {
     }
 }
 
-function getAllMoves(board, color) {
+function getAllMoves(board, color, castlingRights) {
     const moves = [];
     for (let r = 0; r < 8; r++) {
         for (let c = 0; c < 8; c++) {
             const p = board[r][c];
             if (p && p.color === color) {
-                const targets = getValidMoves(board, r, c);
+                const targets = getValidMoves(board, r, c, castlingRights);
                 for (const t of targets) {
                     moves.push({ from: { row: r, col: c }, to: t });
                 }
@@ -131,7 +134,8 @@ function orderMoves(board, moves) {
     });
 }
 
-export function getBestMove(board, aiColor) {
-    const result = minimax(board, aiDepth, -Infinity, Infinity, true, aiColor);
+export function getBestMove(board, aiColor, castlingRights) {
+    const cr = castlingRights ?? createInitialCastlingRights();
+    const result = minimax(board, cr, aiDepth, -Infinity, Infinity, true, aiColor);
     return result.move;
 }

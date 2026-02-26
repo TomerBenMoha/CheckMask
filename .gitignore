@@ -1,5 +1,6 @@
 node_modules/
 android/
+Deployment/android/
 .gradle/
 *.apk
 *.aab
