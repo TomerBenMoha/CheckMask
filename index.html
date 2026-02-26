@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Purim Chess</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1>&#x1F451; Purim Chess &#x1F3AD;</h1>
+            <p class="subtitle">Capture to wear a costume &middot; Feed powers to your King</p>
+        </header>
+
+        <!-- Game setup controls -->
+        <div id="setup-bar">
+            <div class="setup-group">
+                <label for="game-mode">Mode:</label>
+                <select id="game-mode">
+                    <option value="pvai">vs Computer</option>
+                    <option value="pvp">vs Human</option>
+                </select>
+            </div>
+            <div class="setup-group" id="difficulty-group">
+                <label for="difficulty">Difficulty:</label>
+                <select id="difficulty">
+                    <option value="1">Easy</option>
+                    <option value="2">Medium</option>
+                    <option value="3" selected>Hard</option>
+                </select>
+            </div>
+            <button id="new-game">New Game</button>
+        </div>
+
+        <div id="status-bar">White's turn</div>
+
+        <!-- Main area: board + history panel -->
+        <div id="main-area">
+            <div id="board-section">
+                <div id="board-wrapper">
+                    <div id="col-labels" class="labels cols">
+                        <span>a</span><span>b</span><span>c</span><span>d</span>
+                        <span>e</span><span>f</span><span>g</span><span>h</span>
+                    </div>
+                    <div id="board-area">
+                        <div id="row-labels" class="labels rows">
+                            <span>8</span><span>7</span><span>6</span><span>5</span>
+                            <span>4</span><span>3</span><span>2</span><span>1</span>
+                        </div>
+                        <div id="board"></div>
+                    </div>
+                </div>
+
+                <!-- Navigation bar -->
+                <div id="nav-bar">
+                    <button id="nav-first" title="First move">&#x23EE;</button>
+                    <button id="nav-prev" title="Previous move">&#x23F4;</button>
+                    <span id="nav-label">Move 0 / 0</span>
+                    <button id="nav-next" title="Next move">&#x23F5;</button>
+                    <button id="nav-last" title="Current position">&#x23ED;</button>
+                </div>
+
+                <div id="king-powers">
+                    <div class="power-display">
+                        <span class="power-label">&#x265A; W Powers:</span>
+                        <span class="power-icons" data-color="white">none</span>
+                    </div>
+                    <div class="power-display">
+                        <span class="power-label">&#x265A; B Powers:</span>
+                        <span class="power-icons" data-color="black">none</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Move history panel -->
+            <div id="history-panel">
+                <div id="history-header">Moves</div>
+                <div id="history-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
