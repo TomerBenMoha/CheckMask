@@ -62,6 +62,11 @@ function readSettings() {
 // ---------------------------------------------------------------------------
 function startGame() {
     readSettings();
+    aiRequestId += 1;
+    if (aiWorker) {
+        aiWorker.terminate();
+        aiWorker = null;
+    }
     board = createInitialBoard();
     currentCastlingRights = createInitialCastlingRights();
     currentTurn = 'white';
@@ -210,10 +215,17 @@ async function executeMove(fromRow, fromCol, toRow, toCol) {
 }
 
 // ---------------------------------------------------------------------------
-// AI turn
+// AI turn (runs in Web Worker so UI stays responsive; falls back to sync if worker fails)
 // ---------------------------------------------------------------------------
-function doAiTurn() {
-    const move = getBestMove(cloneBoard(board), aiColor, cloneCastlingRights(currentCastlingRights));
+let aiWorker = null;
+let aiRequestId = 0;
+
+function applyAiMoveResult(move, requestId) {
+    if (requestId !== aiRequestId) return;
+    if (aiWorker) {
+        aiWorker.terminate();
+        aiWorker = null;
+    }
 
     if (!move) {
         setStatus('Stalemate!');
@@ -246,6 +258,55 @@ function doAiTurn() {
         setStatus(`${name}'s turn`);
     }
     render();
+}
+
+function doAiTurn() {
+    const boardCopy = cloneBoard(board);
+    const rightsCopy = cloneCastlingRights(currentCastlingRights);
+    const depth = parseInt(difficultySelect.value, 10);
+    aiRequestId += 1;
+    const requestId = aiRequestId;
+
+    function runSyncFallback() {
+        if (requestId !== aiRequestId) return;
+        aiWorker = null;
+        try {
+            const move = getBestMove(boardCopy, aiColor, rightsCopy);
+            applyAiMoveResult(move, requestId);
+        } catch (syncErr) {
+            console.error('AI Sync Fallback Error:', syncErr);
+            setStatus(`AI Error: ${syncErr.message || syncErr}`);
+            gameOver = true;
+            render();
+        }
+    }
+
+    try {
+        const workerUrl = new URL('ai.worker.js', import.meta.url).href;
+        aiWorker = new Worker(workerUrl, { type: 'module' });
+    } catch (err) {
+        console.error('Failed to start worker:', err);
+        runSyncFallback();
+        return;
+    }
+
+    aiWorker.onmessage = function (e) {
+        if (requestId !== aiRequestId) return;
+        const { move, error } = e.data;
+        if (error) {
+            console.error('AI Worker returned error:', error);
+            runSyncFallback();
+            return;
+        }
+        applyAiMoveResult(move, requestId);
+    };
+
+    aiWorker.onerror = function (err) {
+        console.error('AI Worker onerror:', err);
+        runSyncFallback();
+    };
+
+    aiWorker.postMessage({ board: boardCopy, aiColor, castlingRights: rightsCopy, depth });
 }
 
 // ---------------------------------------------------------------------------

@@ -26,8 +26,8 @@ function slidingMoves(board, row, col, color, directions) {
 // Per-type raw move generators (no check filtering)
 // ---------------------------------------------------------------------------
 
-const DIAGONALS = [[-1,-1],[-1,1],[1,-1],[1,1]];
-const ORTHOGONALS = [[-1,0],[1,0],[0,-1],[0,1]];
+const DIAGONALS = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
+const ORTHOGONALS = [[-1, 0], [1, 0], [0, -1], [0, 1]];
 const ALL_DIRS = [...DIAGONALS, ...ORTHOGONALS];
 
 export function getPawnMoves(board, row, col) {
@@ -63,7 +63,7 @@ export function getBishopMoves(board, row, col) {
 
 export function getKnightMoves(board, row, col) {
     const color = board[row][col].color;
-    const offsets = [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]];
+    const offsets = [[-2, -1], [-2, 1], [-1, -2], [-1, 2], [1, -2], [1, 2], [2, -1], [2, 1]];
     const moves = [];
     for (const [dr, dc] of offsets) {
         const r = row + dr, c = col + dc;
@@ -105,7 +105,7 @@ const MOVE_GENERATORS = {
     queen: getQueenMoves,
 };
 
-export function getKingMoves(board, row, col, castlingRights) {
+export function getKingMoves(board, row, col, castlingRights, ignoreCastling = false) {
     const piece = board[row][col];
     const cr = castlingRights ?? createInitialCastlingRights();
     const seen = new Set();
@@ -124,7 +124,7 @@ export function getKingMoves(board, row, col, castlingRights) {
     // Castling: only from king home square (e1/e8)
     const color = piece.color;
     const enemy = color === 'white' ? 'black' : 'white';
-    if (piece.type === 'king' && col === 4) {
+    if (!ignoreCastling && piece.type === 'king' && col === 4) {
         if (color === 'white' && row === 7) {
             if (cr.whiteK) {
                 const rook = board[7][7];
@@ -170,17 +170,17 @@ export function getKingMoves(board, row, col, castlingRights) {
 // ---------------------------------------------------------------------------
 // Dispatch raw moves by piece type
 // ---------------------------------------------------------------------------
-function getRawMoves(board, row, col, castlingRights) {
+function getRawMoves(board, row, col, castlingRights, ignoreCastling = false) {
     const piece = board[row][col];
     if (!piece) return [];
     switch (piece.type) {
-        case 'pawn':   return getPawnMoves(board, row, col);
+        case 'pawn': return getPawnMoves(board, row, col);
         case 'bishop': return getBishopMoves(board, row, col);
         case 'knight': return getKnightMoves(board, row, col);
-        case 'rook':   return getRookMoves(board, row, col);
-        case 'queen':  return getQueenMoves(board, row, col);
-        case 'king':   return getKingMoves(board, row, col, castlingRights);
-        default:       return [];
+        case 'rook': return getRookMoves(board, row, col);
+        case 'queen': return getQueenMoves(board, row, col);
+        case 'king': return getKingMoves(board, row, col, castlingRights, ignoreCastling);
+        default: return [];
     }
 }
 
@@ -193,7 +193,7 @@ export function isSquareAttacked(board, row, col, byColor) {
         for (let c = 0; c < 8; c++) {
             const p = board[r][c];
             if (p && p.color === byColor) {
-                const moves = getRawMoves(board, r, c);
+                const moves = getRawMoves(board, r, c, null, true);
                 if (moves.some(m => m.row === row && m.col === col)) return true;
             }
         }
