@@ -1,7 +1,7 @@
 {
   "appId": "com.purimchess.app",
   "appName": "Purim Chess",
-  "webDir": "../GameWebServer",
+  "webDir": "..",
   "server": {
     "androidScheme": "https"
   },
