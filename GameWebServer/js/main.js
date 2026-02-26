@@ -6,7 +6,7 @@ import {
     renderBoard, setStatus, setSquareClickHandler,
     setNavigateHandler, setHistoryClickHandler,
     renderHistory, updateNav, moveToNotation,
-    showPromotionDialog,
+    showPromotionDialog, showRulesDialog
 } from './ui.js';
 
 // ---------------------------------------------------------------------------
@@ -112,9 +112,9 @@ function navigate(action) {
     const max = history.length - 1;
     switch (action) {
         case 'first': viewIndex = 0; break;
-        case 'prev':  viewIndex = Math.max(0, viewIndex - 1); break;
-        case 'next':  viewIndex = Math.min(max, viewIndex + 1); break;
-        case 'last':  viewIndex = max; break;
+        case 'prev': viewIndex = Math.max(0, viewIndex - 1); break;
+        case 'next': viewIndex = Math.min(max, viewIndex + 1); break;
+        case 'last': viewIndex = max; break;
     }
     selectedSquare = null;
     validMoves = [];
@@ -336,6 +336,7 @@ setSquareClickHandler(handleSquareClick);
 setNavigateHandler(navigate);
 setHistoryClickHandler(navigateToIndex);
 document.getElementById('new-game').addEventListener('click', startGame);
+document.getElementById('show-rules').addEventListener('click', showRulesDialog);
 
 // Keyboard shortcuts for navigation
 document.addEventListener('keydown', (e) => {
@@ -346,3 +347,4 @@ document.addEventListener('keydown', (e) => {
 });
 
 startGame();
+showRulesDialog();

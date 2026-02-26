@@ -234,3 +234,67 @@ export function showPromotionDialog(color) {
         document.body.appendChild(overlay);
     });
 }
+
+// ---------------------------------------------------------------------------
+// Rules dialog
+// ---------------------------------------------------------------------------
+export function showRulesDialog() {
+    const overlay = document.createElement('div');
+    overlay.className = 'promo-overlay';
+
+    const dialog = document.createElement('div');
+    dialog.className = 'rules-dialog';
+
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'rules-close-btn';
+    closeBtn.innerHTML = '&times;';
+    closeBtn.addEventListener('click', () => overlay.remove());
+    dialog.appendChild(closeBtn);
+
+    const title = document.createElement('h2');
+    title.innerHTML = '&#x1F451; Purim Chess Rules &#x1F3AD;';
+    dialog.appendChild(title);
+
+    // Section 1: Costumes
+    const costumesSec = document.createElement('div');
+    costumesSec.className = 'rules-section';
+    costumesSec.innerHTML = `
+        <h3>&#x1F3AD; Costumes</h3>
+        <p>When a piece captures an enemy of a strictly <strong>higher rank</strong> (e.g., a Pawn capturing a Knight), it steals their costume and gains their movement abilities!</p>
+        <div class="rules-visual">
+            <div class="rules-demo-square">
+                <span class="piece-symbol piece-white costumed">${UNICODE_PIECES['white']['knight']}</span>
+            </div>
+            <div class="rules-demo-text">
+                <strong>Example:</strong> A White Pawn captures a Black Knight. It now moves like a Knight and sparkles to show its new costume!
+            </div>
+        </div>
+    `;
+    dialog.appendChild(costumesSec);
+
+    // Section 2: King Powers
+    const kingSec = document.createElement('div');
+    kingSec.className = 'rules-section';
+    kingSec.innerHTML = `
+        <h3>&#x265A; King Powers</h3>
+        <p>The King is greedy! When the King captures any piece, he permanently absorbs its movement abilities in addition to his own.</p>
+        <div class="rules-visual">
+            <div class="rules-demo-square">
+                <span class="piece-symbol piece-black king-powered">${UNICODE_PIECES['black']['king']}</span>
+            </div>
+            <div class="rules-demo-text">
+                <strong>Example:</strong> The Black King captures a Rook. He glows golden and can now move like a Rook as well as a King!
+            </div>
+        </div>
+    `;
+    dialog.appendChild(kingSec);
+
+    overlay.appendChild(dialog);
+
+    // Close on click outside
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) overlay.remove();
+    });
+
+    document.body.appendChild(overlay);
+}
